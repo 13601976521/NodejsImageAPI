@@ -1,0 +1,38 @@
+{
+  "name": "nodeimageapi",
+  "version": "0.0.1",
+  "author": "Jakob Damgaard <jakob.viskum.damgaard@gmail.com>",
+  "description": "Image API in node.js",
+  "contributors": [
+    {
+      "name": "Jakob Damgaard",
+      "email": "jakob.viskum.damgaard@gmail.com"
+    }
+  ],
+  "scripts": {
+    "start": "app.js"
+  },
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jvdamgaard/nodejsimageapi.git"
+  },
+  "dependencies": {
+    "mkdirp": "0.3.x",
+    "crypto": "0.0.x",
+    "async": "0.1.x",
+    "imagemagick": "0.1.x",
+    "underscore": "1.4.x",
+    "kraken": "0.1.x",
+    "node-static": "~0.6.7"
+  },
+  "devDependencies": {
+    "mocha": "1.8.x",
+    "expect.js": "0.2.x"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": "0.10.x"
+  },
+  "subdomain": "nodejsimageapi"
+}

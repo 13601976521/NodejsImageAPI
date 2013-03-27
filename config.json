@@ -1,0 +1,8 @@
+{
+  "extensions": ["jpg", "jpeg", "png", "gif", "ico"],
+  "KrakenAPI": {
+    "user": "jvdamgaard",
+    "pass": "3kanter",
+    "apikey": "e259d750cf5a0fb55ff32f1fb5ea2cf5"
+  }
+}
