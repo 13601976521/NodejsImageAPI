@@ -1,6 +1,8 @@
 var static = require('node-static'),
     _      = require('underscore'),
-    path   = require('path');
+    path   = require('path'),
+    fs     = require('fs'),
+    im     = require('imagemagick');
 
 var file = new(static.Server)('./public', { cache: 60*60*24*365 });
 
@@ -12,7 +14,17 @@ require('http').createServer(function (req, res) {
 
     file.serve(req, res, function (err, result) {
       if (err && (err.status === 404)) { // If the file wasn't found
-        file.serveFile('/not-found.html', 404, {}, req, res);
+
+        fs.exists(data.base, function(exists) {
+          if (exists) {
+            computeImage(data, function() {
+              file.serve(req, res);
+            });
+          } else {
+            file.serveFile('/not-found.html', 404, {}, req, res);
+          }
+        });
+
       }
     });
   });
@@ -44,13 +56,20 @@ var computeUrl = function(url, callback) {
     }
 
     // Quality
-    if (component.match(/^[0-9]*$/)) {
+    if (component.match(/^[0-100]$/)) {
       settings.quality = component;
       return;
     }
 
     // Imagedimensions
-    if (component.match(/^[0-9]*x[0-9]*$/i)) {
+    // Should be of one of following formats:
+    // - x200     => width: auto,            height: 200px,           crop: none
+    // - 200x     => width: 200px,           height: auto,            crop: none
+    // - 200x200  => width: 200px,           height: 200px,           crop: yes
+    // - x50%     => width: auto,            height: 50% of original, crop: none
+    // - 50%x     => width: 50% of original, height: auto,            crop: none
+    // - 50%x50%  => width: 50% of original, height: 50% of original, crop: yes
+    if (component.match(/^[0-9]*%?x[0-9]*%?$/)) {
       var dimensions = component.toLowerCase().split('x');
       if (dimensions[0] !== '') settings.width = dimensions[0];
       if (dimensions[1] !== '') settings.height = dimensions[1];
@@ -72,6 +91,7 @@ var computeUrl = function(url, callback) {
   if (_(settings).isEmpty()) return callback('Invalid url for Image API');
 
   var imageUrl = '/' + settings.folder + '/img';
+  var originalImageUrl = './public' + imageUrl;
 
   if (settings.width || settings.height) {
     imageUrl += '-';
@@ -83,7 +103,14 @@ var computeUrl = function(url, callback) {
   if (settings.quality) imageUrl += '-' + settings.quality;
 
   imageUrl += '.' + settings.extension;
+  originalImageUrl += '.' + settings.extension;
 
   settings.url = imageUrl;
+  settings.base = originalImageUrl;
   callback(null, settings);
+};
+
+var computeImage = function(data, callback) {
+  console.log('Make image');
+  callback();
 };
