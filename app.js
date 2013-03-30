@@ -2,7 +2,11 @@ var static = require('node-static'),
     _      = require('underscore'),
     path   = require('path'),
     fs     = require('fs'),
-    im     = require('imagemagick');
+    im     = require('imagemagick'),
+    Kraken = require('kraken'),
+    http   = require('http'),
+    https  = require('https'),
+    fs     = require('fs');
 
 var file = new(static.Server)('./public', { cache: 60*60*24*365 });
 
@@ -15,7 +19,7 @@ require('http').createServer(function (req, res) {
     file.serve(req, res, function (err, result) {
       if (err && (err.status === 404)) { // If the file wasn't found
 
-        fs.exists(data.base, function(exists) {
+        fs.exists('./public/' + data.base, function(exists) {
           if (exists) {
             computeImage(data, function() {
               file.serve(req, res);
@@ -56,20 +60,20 @@ var computeUrl = function(url, callback) {
     }
 
     // Quality
-    if (component.match(/^[0-100]$/)) {
+    if (component.match(/^([0-9]{1,2}|100)$/)) {
       settings.quality = component;
       return;
     }
 
     // Imagedimensions
     // Should be of one of following formats:
-    // - x200     => width: auto,            height: 200px,           crop: none
-    // - 200x     => width: 200px,           height: auto,            crop: none
-    // - 200x200  => width: 200px,           height: 200px,           crop: yes
-    // - x50%     => width: auto,            height: 50% of original, crop: none
-    // - 50%x     => width: 50% of original, height: auto,            crop: none
-    // - 50%x50%  => width: 50% of original, height: 50% of original, crop: yes
-    if (component.match(/^[0-9]*%?x[0-9]*%?$/)) {
+    // - x200         => width: auto,            height: 200px,           crop: none
+    // - 200x         => width: 200px,           height: auto,            crop: none
+    // - 200x200      => width: 200px,           height: 200px,           crop: yes
+    // - x50pct       => width: auto,            height: 50% of original, crop: none
+    // - 50pctx       => width: 50% of original, height: auto,            crop: none
+    // - 50pctx50pct  => width: 50% of original, height: 50% of original, crop: yes
+    if (component.match(/^[0-9]*(pct)?x[0-9]*(pct)?$/)) {
       var dimensions = component.toLowerCase().split('x');
       if (dimensions[0] !== '') settings.width = dimensions[0];
       if (dimensions[1] !== '') settings.height = dimensions[1];
@@ -91,7 +95,7 @@ var computeUrl = function(url, callback) {
   if (_(settings).isEmpty()) return callback('Invalid url for Image API');
 
   var imageUrl = '/' + settings.folder + '/img';
-  var originalImageUrl = './public' + imageUrl;
+  var originalImageUrl = imageUrl;
 
   if (settings.width || settings.height) {
     imageUrl += '-';
@@ -110,7 +114,93 @@ var computeUrl = function(url, callback) {
   callback(null, settings);
 };
 
-var computeImage = function(data, callback) {
-  console.log('Make image');
-  callback();
+var computeImage = function(data, done) {
+  options = {
+    srcPath: './public' + data.base,
+    dstPath: './public' + data.url,
+    format: data.extension
+  };
+
+  if (data.width) options.width = data.width.replace('pct', '%');
+  if (data.height) options.height = data.height.replace('pct', '%');
+  if (data.quality) options.quality = data.quality/100;
+
+  im.identify(options.srcPath, function(err, meta){
+    if (err) return done(err);
+
+    // Resize and crop
+    if (options.width && options.height) {
+
+      resizeOptions = _(options).clone();
+
+      // 200x400 (0.5) => 100x50 (2)
+      if (resizeOptions.width/resizeOptions.height < meta.width/meta.height) {
+        delete resizeOptions.width;
+      } else {
+        delete resizeOptions.height;
+      }
+
+      // Resize
+      im.resize(resizeOptions, function(err, stdout, stderr){
+        if (err || stderr) return done(err);
+
+        // Crop
+        options.srcPath = options.dstPath;
+
+        im.crop(options, function(err, stdout, stderr){
+          if (err || stderr) return done(err);
+          console.log(data.url + ' created');
+          compressImage(options.dstPath, done);
+        });
+      });
+
+    // Only resize
+    } else {
+      im.resize(options, function(err, stdout, stderr){
+        if (err || stderr) return done(err);
+        console.log(data.url + ' created');
+        compressImage(options.dstPath, done);
+      });
+    }
+  });
+};
+
+
+var compressImage = function(file, callback) {
+  var options = require('./config');
+  var krakenTypes = ['jpg', 'jpeg', 'png', 'gif'];
+  var ext = path.extname(file).replace('.', '').toLowerCase();
+
+  if (_.indexOf(krakenTypes, ext) === -1 || !options.KrakenAPI) return callback(null);
+
+  var kraken = new Kraken(options.KrakenAPI);
+
+  console.log('Uploading ' + file + ' to Kraken.io API...');
+  kraken.upload(file, function(status) {
+    if (status.success) {
+      copyImageFromUrl(status.krakedURL, file, function(err) {
+        if (err) return log.error('img', err);
+        console.log('Squeezed ' + (Math.round(status.savedBytes / 10) / 100) + 'kB (' + status.savedPercent + ') out of ' + file + ': total size: ' + (Math.round(status.krakedSize / 10) / 100) + 'kb');
+        callback();
+      });
+    } else {
+      callback(status.error);
+    }
+  });
+};
+
+// Save an image from the web to the desk
+copyImageFromUrl = function(imageUrl, destination, callback) {
+
+  var protocol = http;
+  if (imageUrl.toLowerCase().indexOf('https') === 0) {
+    protocol = https;
+  }
+
+  var file = fs.createWriteStream(destination);
+  var request = protocol.get(imageUrl, function(response) {
+    response.on('end', callback);
+    response.on('error', callback);
+    response.pipe(file);
+  });
 };
