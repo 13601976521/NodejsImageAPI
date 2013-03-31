@@ -1,6 +1,6 @@
 {
   "name": "nodeimageapi",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "author": "Jakob Damgaard <jakob.viskum.damgaard@gmail.com>",
   "description": "Image API in node.js",
   "contributors": [
@@ -19,12 +19,10 @@
   },
   "dependencies": {
     "mkdirp": "0.3.x",
-    "crypto": "0.0.x",
-    "async": "0.1.x",
     "imagemagick": "0.1.x",
     "underscore": "1.4.x",
     "kraken": "0.1.x",
-    "node-static": "~0.6.7"
+    "node-static": "0.6.x"
   },
   "devDependencies": {
     "mocha": "1.8.x",
