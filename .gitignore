@@ -1,6 +1,7 @@
-# Compiled files in boilerplate #
+# Compiled files #
 ######################
-
+public/
+images/
 
 # Nodejs #
 ######################
