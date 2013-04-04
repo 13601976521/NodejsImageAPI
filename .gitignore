@@ -1,6 +1,10 @@
-# Compiled files #
+# Compiled images #
 ######################
 public/
+!public/not-found.html
+
+# Raw images #
+######################
 images/
 
 # Nodejs #
